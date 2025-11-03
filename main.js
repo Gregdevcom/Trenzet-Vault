@@ -38,9 +38,14 @@ let init = async () => {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       video: true,
-      audio: true,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
     user1Vid.srcObject = localStream;
+    user1Vid.muted = true;
   } catch {
     errText.innerText = "Access denied.";
   }
