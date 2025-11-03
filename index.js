@@ -12,7 +12,10 @@ function createRoom() {
 }
 
 function joinRoom() {
-  const roomCode = document.getElementById("roomCode").value.trim();
+  const roomCode = document
+    .getElementById("roomCode")
+    .value.trim()
+    .toLowerCase();
   const errorEl = document.getElementById("error");
 
   if (!roomCode) {
