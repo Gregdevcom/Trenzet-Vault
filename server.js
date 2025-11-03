@@ -8,7 +8,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Serve static files from 'public' directory
-app.use(express.static("public"));
+app.use(express.static("."));
 
 // Store connected clients and room information
 const rooms = new Map(); // roomId -> Set of client WebSockets
