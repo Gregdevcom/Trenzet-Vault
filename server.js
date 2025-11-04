@@ -123,66 +123,99 @@ wss.on("close", () => {
 
 // Create a new room (only called by room creator)
 function handleCreateRoom(ws, roomId) {
+  console.log(`🏠 Creating room: ${roomId}`);
   // Mark this room as valid
   validRooms.add(roomId);
+  console.log(`✅ Valid rooms:`, Array.from(validRooms));
 
   // Now join the room
   handleJoin(ws, roomId);
 }
-
 // Handle client joining a room
 function handleJoin(ws, roomId) {
+  console.log(`👤 User attempting to join room: ${roomId}`);
+
   // Leave current room if in one
   handleDisconnect(ws);
 
-  // ✨ NEW: Check if room is valid (was properly created)
+  // Check if room is valid (was properly created)
   if (!validRooms.has(roomId)) {
+    console.log(`❌ Room ${roomId} does not exist in validRooms`);
     ws.send(
       JSON.stringify({
         type: "error",
         message: "Room does not exist",
-        redirect: true, // Tell client to redirect
+        redirect: true,
       })
     );
     return;
   }
 
+  console.log(`✅ Room ${roomId} is valid`);
+
   // Create room if it doesn't exist
   if (!rooms.has(roomId)) {
     rooms.set(roomId, new Set());
+    console.log(`📦 Created new room Map entry for ${roomId}`);
   }
 
   const room = rooms.get(roomId);
 
-  // ✨ NEW: Clean up any dead connections first
-  cleanupRoom(roomId);
+  // ✅ IMPROVED: More aggressive cleanup of dead connections
+  const deadConnections = [];
+  room.forEach((client) => {
+    if (client.readyState !== WebSocket.OPEN) {
+      deadConnections.push(client);
+    }
+  });
+
+  deadConnections.forEach((client) => {
+    console.log(`🧹 Removing dead connection from room`);
+    room.delete(client);
+    clientRooms.delete(client);
+  });
+
+  console.log(`🧹 After cleanup, room size: ${room.size}`);
 
   // Check if room is full (limit to 2 users for 1-on-1 call)
   if (room.size >= 2) {
+    console.log(`⛔ Room ${roomId} is full`);
     ws.send(JSON.stringify({ type: "error", message: "Room is full" }));
     return;
   }
 
+  const isInitiator = room.size === 0;
+  console.log(
+    `🎯 User is initiator: ${isInitiator}, room size before add: ${room.size}`
+  );
+
   // Add client to room
   room.add(ws);
   clientRooms.set(ws, roomId);
+  console.log(`➕ Added user to room. New room size: ${room.size}`);
 
   // Notify client they joined successfully
   ws.send(
     JSON.stringify({
       type: "joined",
       roomId: roomId,
-      isInitiator: room.size === 1, // First person creates offer
+      isInitiator: isInitiator,
     })
   );
+  console.log(`📤 Sent 'joined' to user. isInitiator: ${isInitiator}`);
 
-  // If second person joined, notify first person to start call
+  // If second person joined, notify BOTH clients
   if (room.size === 2) {
+    console.log(`🎉 Room is full! Sending 'ready' to both users`);
     room.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
+      if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ type: "ready" }));
+        console.log(`📤 Sent 'ready' to a client`);
       }
     });
+  } else if (room.size === 1) {
+    // ✅ NEW: If only one person in room, notify them that peer disconnected
+    console.log(`👤 Only one user in room - waiting for peer`);
   }
 }
 
@@ -207,7 +240,6 @@ function broadcastToRoom(sender, data) {
     }
   });
 }
-
 // Handle client disconnect
 function handleDisconnect(ws) {
   const roomId = clientRooms.get(ws);
@@ -217,11 +249,13 @@ function handleDisconnect(ws) {
 
     if (room) {
       room.delete(ws);
+      console.log(`👋 User disconnected from room ${roomId}`);
 
       // Notify other clients in room
       room.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ type: "peer-disconnected" }));
+          console.log(`📤 Notified remaining user of disconnection`);
         }
       });
 
@@ -229,6 +263,7 @@ function handleDisconnect(ws) {
       if (room.size === 0) {
         rooms.delete(roomId);
         validRooms.delete(roomId);
+        console.log(`🗑️ Room ${roomId} deleted (empty)`);
       }
     }
 

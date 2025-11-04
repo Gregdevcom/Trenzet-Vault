@@ -11,24 +11,26 @@ let isVideo;
 let isMuted;
 
 // ✨ NEW: Function to get TURN server credentials
-async function getTurnServers() {
-  try {
-    const response = await fetch(
-      "https://trenzet-vault.metered.live/api/v1/turn/credentials?apiKey=9b8c11e6df0b9d43d7e66fe1ed06b72f4a94"
-    );
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching TURN credentials:", error);
-    // Fallback to just STUN if TURN fetch fails
-    return [];
-  }
-}
 
 const servers = {
   iceServers: [
     {
       urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+    },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
     },
   ],
   iceCandidatePoolSize: 10,
@@ -274,23 +276,8 @@ let createOffer = async () => {
     peerConnection.close();
   }
 
-  // ✨ NEW: Get fresh TURN credentials
-  const turnServers = await getTurnServers();
+  peerConnection = new RTCPeerConnection(servers);
 
-  // Combine STUN and TURN servers
-  const iceServers = [
-    // Keep Google STUN servers
-    {
-      urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
-    },
-    // Add Metered TURN servers
-    ...turnServers,
-  ];
-
-  peerConnection = new RTCPeerConnection({
-    iceServers: iceServers,
-    iceCandidatePoolSize: 10,
-  });
   setupPeerConnectionListeners();
 
   remoteStream = new MediaStream();
@@ -317,12 +304,21 @@ let createOffer = async () => {
 
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
-      // ✨ NEW: Log the type of connection
       const candidateType = event.candidate.type;
-      console.log(`🔌 ICE Candidate: ${candidateType}`);
+      console.log(`📌 ICE Candidate Type: ${candidateType}`);
+      console.log(`   Protocol: ${event.candidate.protocol}`);
+      console.log(
+        `   Address: ${event.candidate.address || event.candidate.ip}`
+      );
+      console.log(`   Port: ${event.candidate.port}`);
+      console.log(`   Full candidate:`, event.candidate);
 
       if (candidateType === "relay") {
         console.log("✅ Using TURN relay server!");
+      } else if (candidateType === "host") {
+        console.log("🏠 Using host (local) connection");
+      } else if (candidateType === "srflx") {
+        console.log("🌐 Using server reflexive (STUN) connection");
       }
 
       ws.send(
@@ -331,6 +327,8 @@ let createOffer = async () => {
           candidate: event.candidate,
         })
       );
+    } else {
+      console.log("✅ ICE gathering complete");
     }
   };
 
@@ -449,6 +447,7 @@ function connectWebSocket() {
 
   ws.onmessage = async (event) => {
     const data = JSON.parse(event.data);
+    console.log("📩 Received:", data.type, data);
 
     if (data.type === "joined") {
       isInitiator = data.isInitiator;
@@ -524,21 +523,9 @@ async function handleOffer(offer) {
     peerConnection.close();
   }
 
-  // ✨ NEW: Get fresh TURN credentials
-  const turnServers = await getTurnServers();
+  peerConnection = new RTCPeerConnection(servers);
 
-  // Combine STUN and TURN servers
-  const iceServers = [
-    {
-      urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
-    },
-    ...turnServers,
-  ];
-
-  peerConnection = new RTCPeerConnection({
-    iceServers: iceServers,
-    iceCandidatePoolSize: 10,
-  });
+  setupPeerConnectionListeners();
 
   remoteStream = new MediaStream();
   mainVideo.srcObject = remoteStream;
@@ -566,12 +553,21 @@ async function handleOffer(offer) {
 
   peerConnection.onicecandidate = async (event) => {
     if (event.candidate) {
-      // ✨ NEW: Log the type of connection
       const candidateType = event.candidate.type;
-      console.log(`🔌 ICE Candidate: ${candidateType}`);
+      console.log(`📌 ICE Candidate Type: ${candidateType}`);
+      console.log(`   Protocol: ${event.candidate.protocol}`);
+      console.log(
+        `   Address: ${event.candidate.address || event.candidate.ip}`
+      );
+      console.log(`   Port: ${event.candidate.port}`);
+      console.log(`   Full candidate:`, event.candidate);
 
       if (candidateType === "relay") {
         console.log("✅ Using TURN relay server!");
+      } else if (candidateType === "host") {
+        console.log("🏠 Using host (local) connection");
+      } else if (candidateType === "srflx") {
+        console.log("🌐 Using server reflexive (STUN) connection");
       }
 
       ws.send(
@@ -580,6 +576,8 @@ async function handleOffer(offer) {
           candidate: event.candidate,
         })
       );
+    } else {
+      console.log("✅ ICE gathering complete");
     }
   };
 
@@ -629,4 +627,4 @@ init();
 // Change the text indicator inside the chat
 // Custom leave screen
 
-// Immediate: add TURN
+// Immediate: when a non existent room is joined, provide an error, better yet, don't join at all (instead of redirecting)
