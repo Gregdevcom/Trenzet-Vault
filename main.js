@@ -160,6 +160,30 @@ async function updatePeerConnectionTracks() {
   }
 }
 
+// -----------
+
+// Update tracks for Audio only
+async function updateAudioPeerTracks() {
+  if (!peerConnection) return;
+  try {
+    // Get all senders
+    const senders = peerConnection.getSenders();
+
+    // Replace audio track
+    const audioSender = senders.find(
+      (s) => s.track && s.track.kind === "audio"
+    );
+    if (audioSender) {
+      const newAudioTrack = localStream.getAudioTracks()[0];
+      await audioSender.replaceTrack(newAudioTrack);
+    }
+
+    errText.innerText = "Connected!";
+  } catch {
+    await restartConnection();
+  }
+}
+
 // ============ INITIAL SETUP ============
 let init = async () => {
   const btn02 = document.getElementById("muteBtn");
@@ -506,3 +530,7 @@ async function handleIceCandidate(candidate) {
 
 // Start the initialization
 init();
+
+// Handle network switches gracefully
+// Change the text indicator inside the chat
+// Not let mobile users connect

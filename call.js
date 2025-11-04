@@ -54,6 +54,7 @@ async function toggleMute() {
     const audioTracks = window.localStream.getAudioTracks();
     if (!isMuted && audioTracks.length === 0) {
       await reinitializeMedia();
+      updateAudioPeerTracks();
       return;
     }
     window.localStream.getAudioTracks().forEach((track) => {
