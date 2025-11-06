@@ -451,6 +451,11 @@ function connectWebSocket() {
 
     if (data.type === "joined") {
       isInitiator = data.isInitiator;
+      // Close any existing peer connection when rejoining
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
       if (isInitiator) {
         errText.innerText = "Waiting for another user...";
       } else {
@@ -458,8 +463,20 @@ function connectWebSocket() {
       }
     } else if (data.type === "ready") {
       errText.innerText = "User found! Connecting...";
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
       if (isInitiator) {
         await createOffer();
+      } else {
+        setTimeout(async () => {
+          if (!peerConnection || !peerConnection.remoteDescription) {
+            console.log("⚠️ No offer received, becoming initiator");
+            isInitiator = true;
+            await createOffer();
+          }
+        }, 1000);
       }
     } else if (data.type === "offer") {
       errText.innerText = "Connecting...";
