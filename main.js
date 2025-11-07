@@ -326,6 +326,9 @@ let createOffer = async () => {
 
   localStream.getTracks().forEach((track) => {
     const sender = peerConnection.addTrack(track, localStream);
+    mainVideo
+      .play()
+      .catch((err) => console.log("Main video play failed:", err)); // ADD THIS
 
     if (track.kind === "video") {
       const parameters = sender.getParameters();
@@ -605,6 +608,7 @@ async function handleOffer(offer) {
 
   remoteStream = new MediaStream();
   mainVideo.srcObject = remoteStream;
+  mainVideo.play().catch((err) => console.log("Main video play failed:", err)); // ADD THIS
 
   localStream.getTracks().forEach((track) => {
     const sender = peerConnection.addTrack(track, localStream);
