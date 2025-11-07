@@ -22,6 +22,9 @@
     />
 
     <style>
+      .gtranslate_wrapper {
+        display: none;
+      }
       html,
       body {
         overscroll-behavior: none;
@@ -46,6 +49,9 @@
         overflow: hidden;
         height: 100vh;
         position: fixed;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        user-select: none;
       }
 
       /* Header */
@@ -53,13 +59,8 @@
         position: absolute;
         top: 0;
         left: 0;
-        right: 0;
         z-index: 100;
-        background: linear-gradient(
-          180deg,
-          rgba(0, 0, 0, 0.7) 0%,
-          rgba(0, 0, 0, 0) 100%
-        );
+        background: none;
         padding: 20px;
         display: flex;
         justify-content: space-between;
@@ -79,18 +80,25 @@
         font-size: 14px;
         font-weight: 600;
         letter-spacing: 1px;
+        -webkit-user-select: text; /* iOS Safari */
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+        -webkit-touch-callout: default;
       }
 
       .copy-btn {
-        background: #2668b5;
+        background: rgba(255, 255, 255, 0.15);
         color: white;
         border: none;
-        padding: 8px 16px;
+        padding: 3px 3px;
         border-radius: 6px;
         cursor: pointer;
         font-size: 14px;
         font-weight: 600;
-        transition: all 0.2s;
+        transition: all 0.5s;
+        opacity: 0.9;
+        margin-left: -5px;
       }
 
       .copy-btn:hover {
@@ -117,8 +125,8 @@
 
       /* Main video (full screen) */
       .video-main {
-        width: 99.5%;
-        height: 99.5%;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
         background: #000;
       }
@@ -161,13 +169,28 @@
 
       /* Responsive */
       @media (max-width: 820px) {
+        .userMicIndic.main {
+          top: 30px !important;
+          width: 30px !important;
+          height: 35px;
+        }
+
+        .micOffDiv {
+          top: 25px;
+          right: 135px !important;
+        }
+
+        .micOffDiv.main {
+          top: 621px;
+          right: 180px !important;
+        }
         .copy-btn {
-          display: none;
+          margin-left: 0;
         }
 
         .video-pip {
-          width: 180px;
-          height: 200px;
+          width: 160px;
+          height: 180px;
           top: 15px;
           right: 15px;
           white-space: nowrap;
@@ -188,14 +211,11 @@
       .controls {
         position: absolute;
         bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: linear-gradient(
-          0deg,
-          rgba(0, 0, 0, 0.8) 0%,
-          rgba(0, 0, 0, 0) 100%
-        );
+        max-width: 500px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 49;
+        background: none;
         padding: 30px 20px 20px;
         display: flex;
         justify-content: center;
@@ -204,11 +224,11 @@
       }
 
       .control-btn {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(72, 72, 72, 0.2);
         border: none;
         width: 50px;
         height: 50px;
-        border-radius: 50%;
+        border-radius: 20px;
         cursor: pointer;
         transition: all 0.2s;
         color: white;
@@ -219,7 +239,7 @@
       }
 
       .control-btn.danger.change {
-        background-color: rgba(95, 189, 108, 0.797);
+        background-color: rgba(77, 149, 87, 0.7);
         transition: all 0.3s ease;
       }
 
@@ -272,19 +292,117 @@
         transition: background 0.2s ease, transform 0.1s ease;
         margin-top: 5px;
       }
+      .micOffDiv {
+        display: inline-grid;
+        row-gap: 0;
+        column-gap: 5px;
+        white-space: nowrap;
+        background-color: rgba(92, 92, 92, 0.556);
+        position: absolute;
+        bottom: 200px;
+        right: 273px;
+        z-index: 999;
+        border-radius: 10px;
+        justify-content: center;
+        align-items: center;
+        height: 30px;
+        width: 30px;
+        opacity: 1;
+        transition: all 0.5s ease;
+        border: 2px solid #c53030;
+        border-radius: 8px;
+        animation: pulse-glow 1.5s infinite ease-in-out;
+      }
+
+      @keyframes pulse-glow {
+        0% {
+          box-shadow: 0 0 0 0 rgba(197, 48, 48, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 20px rgba(197, 48, 48, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(197, 48, 48, 0);
+        }
+      }
+
+      .micOffDiv.hide {
+        display: none;
+        opacity: 1;
+      }
+
+      .micOffIcn {
+        font-size: 25px;
+        margin: 0;
+        justify-self: center;
+        align-self: center;
+      }
+      .micOffDiv.main {
+        bottom: 700px;
+        right: 30px;
+      }
+      .userMicIndic.show {
+        display: flex;
+        row-gap: 0;
+        column-gap: 5px;
+        white-space: nowrap;
+        background-color: rgba(92, 92, 92, 0.256);
+        position: absolute;
+        bottom: 698px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999;
+        border-radius: 10px;
+        justify-content: center;
+        align-items: center;
+        height: 35px;
+        width: 110px;
+        opacity: 1;
+        transition: all 0.5s ease;
+        border: 2px solid #313131;
+        border-radius: 8px;
+        opacity: 0.8;
+      }
+      .userMicIndic {
+        display: none;
+      }
+      .userMicIndic.main {
+        bottom: 200px !important;
+        right: 247px !important;
+        width: 60px;
+        left: auto;
+        transform: none;
+      }
+      .copyItem {
+        font-size: 23px;
+      }
     </style>
   </head>
   <body>
     <div class="header">
       <div class="room-info">
         <div class="room-code">Room: <span id="roomCodeDisplay"></span></div>
-        <button class="copy-btn" onclick="copyRoomCode()">Copy Code</button>
+        <button class="copy-btn" onclick="copyRoomCode()">
+          <span class="copyItem material-symbols-outlined"> content_copy </span>
+        </button>
       </div>
       <p id="err"></p>
     </div>
 
     <div id="video-container">
       <video class="video-main" id="main-video" autoplay playsinline></video>
+      <div class="micOffDiv" id="micOffDiv">
+        <span translate="no" class="micOffIcn material-symbols-outlined">
+          mic_off
+        </span>
+      </div>
+      <div class="userMicIndic" id="userMicIndic">
+        <span translate="no" class="micOffIcn material-symbols-outlined">
+          mic_off
+        </span>
+        <p>Muted</p>
+      </div>
+
       <video
         class="video-pip"
         id="pip-video"
@@ -302,7 +420,7 @@
         id="muteBtn"
         title="Mute/Unmute"
       >
-        <i class="fa-solid fa-phone-volume"></i>
+        <span class="material-symbols-outlined"> mic </span>
       </button>
       <button
         class="control-btn"

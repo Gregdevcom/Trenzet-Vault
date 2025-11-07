@@ -1,4 +1,5 @@
 // server.js - WebSocket signaling server for WebRTC with reconnection support
+const clientMuteStatus = new Map(); // client WebSocket -> boolean (isMuted)
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -90,6 +91,13 @@ wss.on("connection", (ws) => {
           break;
 
         case "peer-ready":
+          broadcastToRoom(ws, data);
+          break;
+
+        case "mute-status":
+          // 🆕 Store the mute status for this client
+          clientMuteStatus.set(ws, data.isMuted);
+          console.log(`🎤 User mute status updated: ${data.isMuted}`);
           broadcastToRoom(ws, data);
           break;
 
@@ -206,6 +214,11 @@ function handleJoin(ws, roomId) {
 
   // If second person joined, notify BOTH clients
   if (room.size === 2) {
+    // 🆕 Get both clients as an array
+    const clients = Array.from(room);
+    const firstUser = clients[0];
+    const secondUser = clients[1];
+
     console.log(`🎉 Room is full! Sending 'ready' to both users`);
     room.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -213,9 +226,38 @@ function handleJoin(ws, roomId) {
         console.log(`📤 Sent 'ready' to a client`);
       }
     });
-  } else if (room.size === 1) {
-    // ✅ NEW: If only one person in room, notify them that peer disconnected
-    console.log(`👤 Only one user in room - waiting for peer`);
+    // 🆕 Send first user's mute status to second user
+    if (
+      clientMuteStatus.has(firstUser) &&
+      secondUser.readyState === WebSocket.OPEN
+    ) {
+      const firstUserMuted = clientMuteStatus.get(firstUser);
+      secondUser.send(
+        JSON.stringify({
+          type: "mute-status",
+          isMuted: firstUserMuted,
+        })
+      );
+      console.log(
+        `📤 Sent first user's mute status (${firstUserMuted}) to second user`
+      );
+    }
+  }
+  // 🆕 Send second user's mute status to first user
+  if (
+    clientMuteStatus.has(secondUser) &&
+    firstUser.readyState === WebSocket.OPEN
+  ) {
+    const secondUserMuted = clientMuteStatus.get(secondUser);
+    firstUser.send(
+      JSON.stringify({
+        type: "mute-status",
+        isMuted: secondUserMuted,
+      })
+    );
+    console.log(
+      `📤 Sent second user's mute status (${secondUserMuted}) to first user`
+    );
   }
 }
 

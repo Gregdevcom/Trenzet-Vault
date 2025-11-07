@@ -1,6 +1,7 @@
 const mainVideo = document.getElementById("main-video");
 const pipVideo = document.getElementById("pip-video");
 const errText = document.getElementById("err");
+const userMicIndic = document.getElementById("userMicIndic");
 let localStream;
 let remoteStream;
 let peerConnection;
@@ -9,7 +10,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 let reconnectTimeout;
 let isVideo;
 let isMuted;
-
+let remoteUserMuted = false; // Track if remote user is muted
 // ✨ NEW: Function to get TURN server credentials
 
 const servers = {
@@ -102,7 +103,6 @@ async function handlePageVisible() {
   }
 }
 
-// Reinitialize media after device lock or track loss
 async function reinitializeMedia() {
   try {
     // Stop old tracks
@@ -110,38 +110,57 @@ async function reinitializeMedia() {
       localStream.getTracks().forEach((track) => track.stop());
     }
 
-    errText.innerText = "Restarting camera...";
+    // Get ONLY the tracks that should be enabled
+    const constraints = {};
 
-    // Get new stream
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: isVideo
-        ? {
-            width: { ideal: 1920, max: 1920 },
-            height: { ideal: 1080, max: 1080 },
-            frameRate: { ideal: 30, max: 60 },
-          }
-        : false,
-      audio: !isMuted
-        ? {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          }
-        : false,
+    // Check sessionStorage for current state
+    const shouldHaveVideo = sessionStorage.getItem("videoOn") === "true";
+    const shouldHaveAudio = sessionStorage.getItem("micOn") === "true";
+
+    if (shouldHaveVideo) {
+      constraints.video = {
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+        frameRate: { ideal: 30, max: 60 },
+      };
+    }
+
+    if (shouldHaveAudio) {
+      constraints.audio = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+    }
+
+    // If nothing should be enabled, just return
+    if (!shouldHaveVideo && !shouldHaveAudio) {
+      return;
+    }
+
+    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    // Create a new MediaStream and add tracks
+    localStream = new MediaStream();
+    newStream.getTracks().forEach((track) => {
+      localStream.addTrack(track);
+      track.onended = () => {
+        if (isPageVisible) {
+          reinitializeMedia();
+        }
+      };
     });
 
     pipVideo.srcObject = localStream;
     pipVideo.muted = true;
     window.localStream = localStream;
 
-    errText.innerText = "Camera restarted!";
-
     // If we have a peer connection, update tracks
     if (peerConnection && peerConnection.connectionState === "connected") {
       await updatePeerConnectionTracks();
     }
-  } catch {
-    errText.innerText = "Camera error - please refresh";
+  } catch (error) {
+    console.error("Failed to reinitialize media:", error);
   }
 }
 
@@ -152,26 +171,42 @@ async function updatePeerConnectionTracks() {
   try {
     // Get all senders
     const senders = peerConnection.getSenders();
-
+    const videoTrack = localStream.getVideoTracks()[0];
     // Replace video track
     const videoSender = senders.find(
       (s) => s.track && s.track.kind === "video"
     );
-    if (videoSender) {
-      const newVideoTrack = localStream.getVideoTracks()[0];
-      await videoSender.replaceTrack(newVideoTrack);
+    if (videoTrack) {
+      if (videoSender) {
+        // Replace existing video track
+        await videoSender.replaceTrack(videoTrack);
+      } else {
+        // Add new video track
+        peerConnection.addTrack(videoTrack, localStream);
+      }
+    } else if (videoSender) {
+      // Remove video track
+      await videoSender.replaceTrack(null);
     }
 
-    // Replace audio track
+    // Handle audio track
+    const audioTrack = localStream.getAudioTracks()[0];
     const audioSender = senders.find(
       (s) => s.track && s.track.kind === "audio"
     );
-    if (audioSender) {
-      const newAudioTrack = localStream.getAudioTracks()[0];
-      await audioSender.replaceTrack(newAudioTrack);
-    }
 
-    errText.innerText = "Connected!";
+    if (audioTrack) {
+      if (audioSender) {
+        // Replace existing audio track
+        await audioSender.replaceTrack(audioTrack);
+      } else {
+        // Add new audio track
+        peerConnection.addTrack(audioTrack, localStream);
+      }
+    } else if (audioSender) {
+      // Remove audio track
+      await audioSender.replaceTrack(null);
+    }
   } catch {
     await restartConnection();
   }
@@ -224,27 +259,33 @@ let init = async () => {
   ) {
     sessionStorage.setItem("micOn", "true");
     isMuted = false;
-    btn02.innerHTML = '<i class="fa-solid fa-phone-volume"></i>';
+    btn02.innerHTML = '<span class="material-symbols-outlined">mic</span>';
   } else {
     isMuted = true;
-    btn02.innerHTML = '<i class="fa-solid fa-phone-slash"></i>';
+    btn02.innerHTML = '<span class="material-symbols-outlined">mic_off</span>';
   }
   try {
+    // ALWAYS request both video and audio permissions on init
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: isVideo
-        ? {
-            width: { ideal: 1920, max: 1920 },
-            height: { ideal: 1080, max: 1080 },
-            frameRate: { ideal: 30, max: 60 },
-          }
-        : false,
-      audio: !isMuted
-        ? {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          }
-        : false,
+      video: {
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+        frameRate: { ideal: 30, max: 60 },
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+
+    // Then disable tracks based on user settings
+    localStream.getVideoTracks().forEach((track) => {
+      track.enabled = isVideo;
+    });
+
+    localStream.getAudioTracks().forEach((track) => {
+      track.enabled = !isMuted;
     });
 
     // Monitor track endings
@@ -455,6 +496,16 @@ function connectWebSocket() {
       if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
+        // 🆕 Send our current mute status immediately after joining
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: "mute-status",
+              isMuted: isMuted,
+            })
+          );
+          console.log(`📤 Sent initial mute status: ${isMuted}`);
+        }
       }
       if (isInitiator) {
         errText.innerText = "Waiting for another user...";
@@ -516,6 +567,14 @@ function connectWebSocket() {
           window.location.href = "/";
         }, 0);
       }
+    } else if (data.type === "mute-status") {
+      remoteUserMuted = data.isMuted;
+      if (remoteUserMuted) {
+        userMicIndic.classList.add("show");
+      } else {
+        userMicIndic.classList.remove("show");
+      }
+      // Create a function that shows the mute indicator
     }
   };
 
@@ -645,3 +704,4 @@ init();
 // Custom leave screen
 
 // Immediate: when a non existent room is joined, provide an error, better yet, don't join at all (instead of redirecting)
+// Fix: Disable scroll on mobile
