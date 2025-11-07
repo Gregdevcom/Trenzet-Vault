@@ -20,14 +20,14 @@ async function joinRoom() {
   const joinBtn = document.querySelector('button[onclick="joinRoom()"]');
 
   if (!roomCode) {
-    errorEl.textContent = "Please enter a room code";
+    errorEl.textContent = "Please enter a room code.";
     errorEl.classList.add("show");
     return;
   }
 
   // Validate room code (alphanumeric only)
   if (!/^[a-zA-Z0-9]+$/.test(roomCode)) {
-    errorEl.textContent = "Room code can only contain letters and numbers";
+    errorEl.textContent = "Room code can only contain letters and numbers.";
     errorEl.classList.add("show");
     return;
   }

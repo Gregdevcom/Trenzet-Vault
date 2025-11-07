@@ -15,7 +15,7 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, sans-serif;
-  background: linear-gradient(135deg, #3755d6 0%, #3bd37f71 100%);
+  background: whitesmoke;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -140,5 +140,13 @@ button:active {
     white-space: wrap;
     text-align: center;
     vertical-align: center;
+  }
+  .container {
+    width: 400px;
+    height: 550px;
+    padding-top: 24px;
+  }
+  .logoT {
+    margin-bottom: 15px;
   }
 }
